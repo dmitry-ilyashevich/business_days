@@ -1,0 +1,59 @@
+#![allow(unused_imports)]
+
+use std::collections::HashMap;
+use std::ops::Range;
+
+use anyhow::Result;
+use chrono::NaiveDate;
+
+use crate::country::Country;
+use crate::holiday::{Holiday, HolidayPerYearMap, Year, from_ymd_res};
+
+#[cfg(feature = "pl")]
+pub mod pl;
+
+pub fn build(country: Country, years: Option<&Range<Year>>) -> Result<HolidayPerYearMap> {
+    match country {
+        #[cfg(feature = "pl")]
+        Country::PL => pl::build(years),
+        #[allow(unreachable_patterns)]
+        other => anyhow::bail!(
+            "Country {other:?} is not supported. Please enable the `{}` cargo feature.",
+            other.code().to_ascii_uppercase()
+        ),
+    }
+}
+
+pub fn build_year<const N: usize>(
+    years: Option<&Range<Year>>,
+    year: Year,
+    holidays: [(NaiveDate, &'static str, &'static str); N],
+    map: &mut HolidayPerYearMap,
+    country: Country,
+    country_name: &'static str,
+) {
+    if let Some(range) = years {
+        if !range.contains(&year) {
+            return;
+        }
+    }
+
+    map.insert(
+        year,
+        holidays
+            .into_iter()
+            .map(|(date, name, name_en)| {
+                (
+                    date,
+                    Holiday {
+                        date,
+                        country,
+                        country_name,
+                        name,
+                        name_en,
+                    },
+                )
+            })
+            .collect(),
+    );
+}

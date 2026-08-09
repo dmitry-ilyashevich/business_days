@@ -1,0 +1,20 @@
+[package]
+name = "business_days"
+version = "0.1.0"
+edition = "2024"
+description = "Business-day and holiday calculations for different countries"
+license = "MIT"
+readme = "README.md"
+keywords = ["business days", "holidays", "dates"]
+repository = "https://github.com/dmitry-ilyashevich/business_days"
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = "0.4.45"
+
+[features]
+default = ["all"]
+
+all = ["pl"]
+
+pl = []
