@@ -8,6 +8,10 @@ readme = "README.md"
 keywords = ["business days", "holidays", "dates"]
 repository = "https://github.com/dmitry-ilyashevich/business_days"
 
+[workspace]
+members = [".", "builder"]
+resolver = "3"
+
 [dependencies]
 anyhow = "1.0.104"
 chrono = "0.4.45"
