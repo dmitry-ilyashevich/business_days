@@ -49,6 +49,10 @@ struct Args {
     // Override the default end_year (default: current year + FUTURE_YEARS).
     #[arg(short, long)]
     end_year: Option<u32>,
+
+    // Re-fetch all data, ignoring any cached files.
+    #[arg(short, long, default_value_t = false)]
+    force: bool,
 }
 
 fn main() -> Result<()> {
@@ -60,7 +64,7 @@ fn main() -> Result<()> {
     let current_year = chrono::Utc::now().year() as u32;
     let end_year = args.end_year.unwrap_or(current_year + FUTURE_YEARS);
 
-    let countries = load_countries(&cache)?;
+    let countries = load_countries(&cache, args.force)?;
 
     if let Some(selected_countries) = &args.countries {
         for country_code in selected_countries {
@@ -88,7 +92,7 @@ fn main() -> Result<()> {
         let (mut fetched, mut cached) = (0u32, 0u32);
         for year in START_YEAR..=end_year {
             let path = dir.join(format!("{year}.json"));
-            if path.exists() {
+            if path.exists() && !args.force {
                 cached += 1;
                 continue;
             }
@@ -129,9 +133,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn load_countries(cache: &Path) -> Result<Vec<CountryInfo>> {
+fn load_countries(cache: &Path, refresh: bool) -> Result<Vec<CountryInfo>> {
     let path = cache.join("countries.json");
-    let raw_body = if path.exists() {
+    let raw_body = if path.exists() && !refresh {
         fs::read_to_string(&path)?
     } else {
         let body = get_with_retry(&format!("{API_V4_URL}/Countries/Available"))?
