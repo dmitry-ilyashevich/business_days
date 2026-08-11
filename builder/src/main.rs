@@ -27,6 +27,18 @@ struct CountryInfo {
     name: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiHoliday {
+    date: String,
+    local_name: Option<String>,
+    name: String,
+    #[serde(default)]
+    global: bool,
+    #[serde(default)]
+    types: Option<Vec<String>>,
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -87,6 +99,10 @@ fn main() -> Result<()> {
             );
             match get_with_retry(&url) {
                 Ok(Some(body)) => {
+                    // Validate before caching so a truncated response never poisons the cache.
+                    serde_json::from_str::<Vec<ApiHoliday>>(&body)
+                        .with_context(|| format!("unparsable response from {url}"))?;
+
                     fs::write(&path, body).context("Failed to write cache file")?;
                     fetched += 1;
                 }
