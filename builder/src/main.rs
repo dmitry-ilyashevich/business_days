@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::thread::sleep;
@@ -12,6 +13,7 @@ use serde::Deserialize;
 // holidays and V4 for fetching countries list
 const API_V3_URL: &str = "https://nagerholidays.com/api/v3";
 const API_V4_URL: &str = "https://nagerholidays.com/api/v4";
+const WEEKDATA_URL: &str = "https://raw.githubusercontent.com/unicode-org/cldr-json/main/cldr-json/cldr-core/supplemental/weekData.json";
 
 const MAX_RETRIES: u32 = 5;
 
@@ -65,6 +67,8 @@ fn main() -> Result<()> {
     let end_year = args.end_year.unwrap_or(current_year + FUTURE_YEARS);
 
     let countries = load_countries(&cache, args.force)?;
+    let week_data = load_week_data(&cache, args.force)?;
+    println!("Weekend days for Poland: {:?}", week_data.get("PL"));
 
     if let Some(selected_countries) = &args.countries {
         for country_code in selected_countries {
@@ -148,6 +152,85 @@ fn load_countries(cache: &Path, refresh: bool) -> Result<Vec<CountryInfo>> {
     countries.sort_by(|a, b| a.country_code.cmp(&b.country_code));
 
     Ok(countries)
+}
+
+// Weekend days of week per country: country code -> list of weekend days
+// e.g., "US" -> ["Sat", "Sun"]
+struct WeekData(BTreeMap<String, Vec<&'static str>>);
+
+impl WeekData {
+    fn get(&self, code: &str) -> &[&'static str] {
+        self.0.get(code).unwrap_or_else(|| &self.0["001"])
+    }
+}
+
+fn load_week_data(cache: &Path, refresh: bool) -> Result<WeekData> {
+    let path = cache.join("week_data.json");
+    let raw_body = if path.exists() && !refresh {
+        fs::read_to_string(&path)?
+    } else {
+        let body = get_with_retry(WEEKDATA_URL)?.context("Failed to fetch week data from API")?;
+        fs::write(&path, &body).context("Failed to write week data cache file")?;
+        body
+    };
+
+    const DAYS: [&str; 7] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    const CHRONO_DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let day_to_index: BTreeMap<&str, usize> =
+        DAYS.iter().enumerate().map(|(i, &d)| (d, i)).collect();
+
+    let json: serde_json::Value =
+        serde_json::from_str(&raw_body).context("Failed to parse week data JSON")?;
+
+    let week = &json["supplemental"]["weekData"];
+    let starts = week["weekendStart"]
+        .as_object()
+        .context("Missing weekendStart data")?;
+    let ends = week["weekendEnd"]
+        .as_object()
+        .context("Missing weekendEnd data")?;
+    let default_start = starts["001"]
+        .as_str()
+        .context("Missing default weekendStart")?;
+    let default_end = ends["001"].as_str().context("Missing default weekendEnd")?;
+
+    let mut week_data = BTreeMap::new();
+    let mut codes: Vec<&String> = starts.keys().chain(ends.keys()).collect();
+    codes.sort();
+    codes.dedup();
+    for code in codes {
+        let start = starts
+            .get(code)
+            .and_then(|v| v.as_str())
+            .unwrap_or(default_start);
+        let end = ends
+            .get(code)
+            .and_then(|v| v.as_str())
+            .unwrap_or(default_end);
+
+        // Generate the list of weekend days for this country code
+        let mut days = Vec::new();
+        let mut index = *day_to_index
+            .get(start)
+            .context(format!("Invalid weekendStart day: {}", start))?;
+        let end_index = *day_to_index
+            .get(end)
+            .context(format!("Invalid weekendEnd day: {}", end))?;
+
+        loop {
+            days.push(CHRONO_DAYS[index]);
+
+            if index == end_index {
+                break;
+            }
+
+            index = (index + 1) % 7; // Wrap around the week
+        }
+
+        week_data.insert(code.clone(), days);
+    }
+
+    Ok(WeekData(week_data))
 }
 
 fn is_retryable_status(status: reqwest::StatusCode) -> bool {
