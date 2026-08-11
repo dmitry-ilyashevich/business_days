@@ -4,11 +4,21 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use chrono::Datelike;
 use clap::Parser;
 use serde::Deserialize;
+
+// V4 have not holidays names in local languages, so we use V3 for fetching
+// holidays and V4 for fetching countries list
+const API_V3_URL: &str = "https://nagerholidays.com/api/v3";
 const API_V4_URL: &str = "https://nagerholidays.com/api/v4";
 
 const MAX_RETRIES: u32 = 5;
+
+const START_YEAR: u32 = 2000;
+const FUTURE_YEARS: u32 = 5;
+
+const REQUEST_DELAY: Duration = Duration::from_millis(150); // milliseconds
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -23,6 +33,10 @@ struct Args {
     // Comma-separated list of country codes to fetch and generate (default: all).
     #[arg(short, long, value_delimiter = ',')]
     countries: Option<Vec<String>>,
+
+    // Override the default end_year (default: current year + FUTURE_YEARS).
+    #[arg(short, long)]
+    end_year: Option<u32>,
 }
 
 fn main() -> Result<()> {
@@ -30,6 +44,9 @@ fn main() -> Result<()> {
 
     let builder_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let cache = builder_dir.join("cache");
+
+    let current_year = chrono::Utc::now().year() as u32;
+    let end_year = args.end_year.unwrap_or(current_year + FUTURE_YEARS);
 
     let countries = load_countries(&cache)?;
 
@@ -46,6 +63,7 @@ fn main() -> Result<()> {
         args.countries.as_ref().map_or(countries.len(), |c| c.len())
     );
 
+    // Fetch countries info
     for country in &countries {
         if let Some(selected_countries) = &args.countries {
             if !selected_countries.contains(&country.country_code) {
@@ -53,7 +71,43 @@ fn main() -> Result<()> {
             }
         }
 
-        println!("Country name: {}", country.name);
+        let dir = cache.join(&country.country_code);
+        fs::create_dir_all(&dir).context("Failed to create cache directory")?;
+        let (mut fetched, mut cached) = (0u32, 0u32);
+        for year in START_YEAR..=end_year {
+            let path = dir.join(format!("{year}.json"));
+            if path.exists() {
+                cached += 1;
+                continue;
+            }
+
+            let url = format!(
+                "{API_V3_URL}/PublicHolidays/{year}/{country_code}",
+                country_code = country.country_code
+            );
+            match get_with_retry(&url) {
+                Ok(Some(body)) => {
+                    fs::write(&path, body).context("Failed to write cache file")?;
+                    fetched += 1;
+                }
+                Ok(None) => {
+                    fs::write(&path, "[]").context("Failed to write empty cache file")?;
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Failed to fetch holidays for {} in {}: {}",
+                        country.country_code, year, e
+                    );
+                }
+            }
+
+            sleep(REQUEST_DELAY); // Avoid hitting the API too quickly
+        }
+        println!(
+            "Country {}: fetched {} years, cached {} years",
+            country.country_code, fetched, cached
+        );
     }
 
     Ok(())
