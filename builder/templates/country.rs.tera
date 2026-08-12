@@ -36,7 +36,7 @@ impl Country {
 
         #[allow(clippy::match_single_binding)]
         match self {
-{% for country_code, days in week_data %}            Country::{{ country_code }} => &[{{ days | join(sep=", ") }}],
+{% for entry in week_data %}            Country::{{ entry.country_code }} => &[{{ entry.days | join(sep=", ") }}],
 {% endfor %}
             _ => &[Sat, Sun],
         }

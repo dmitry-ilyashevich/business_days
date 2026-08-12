@@ -461,6 +461,12 @@ fn rustfmt_file(path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct WeekDataEntry<'a> {
+    country_code: &'a str,
+    days: &'a [&'static str],
+}
+
 fn generate_country_enums(
     builder_dir: &Path,
     src_dir: &Path,
@@ -478,11 +484,16 @@ fn generate_country_enums(
     context.insert("countries", &countries);
 
     let country_codes: Vec<&String> = countries.iter().map(|c| &c.country_code).collect();
-    let filtered_week_data: BTreeMap<&String, &Vec<&'static str>> = week_data
+    let mut filtered_week_data: Vec<WeekDataEntry> = week_data
         .0
         .iter()
         .filter(|(k, _)| country_codes.contains(k))
+        .map(|(code, days)| WeekDataEntry {
+            country_code: code,
+            days,
+        })
         .collect();
+    filtered_week_data.sort_by(|a, b| a.country_code.cmp(b.country_code));
     context.insert("week_data", &filtered_week_data);
 
     let rendered = tera
@@ -499,6 +510,12 @@ fn generate_country_enums(
     Ok(())
 }
 
+#[derive(Serialize)]
+struct CountryCodeEntry<'a> {
+    country_code: &'a str,
+    country_code_ident: String,
+}
+
 fn generate_mod_file(
     builder_dir: &Path,
     src_dir: &Path,
@@ -511,10 +528,14 @@ fn generate_mod_file(
         .with_context(|| format!("Failed to load template {}", template_path.display()))?;
 
     let mut context = TeraContext::new();
-    let country_codes_ident: BTreeMap<&String, String> = countries
+    let mut country_codes_ident: Vec<CountryCodeEntry> = countries
         .iter()
-        .map(|c| (&c.country_code, mod_ident(&c.country_code)))
+        .map(|c| CountryCodeEntry {
+            country_code: &c.country_code,
+            country_code_ident: mod_ident(&c.country_code),
+        })
         .collect();
+    country_codes_ident.sort_by(|a, b| a.country_code.cmp(b.country_code));
     context.insert("country_codes", &country_codes_ident);
 
     let rendered = tera

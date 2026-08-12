@@ -1249,15 +1249,15 @@ impl Country {
 
         #[allow(clippy::match_single_binding)]
         match self {
-            Country::SD => &[Fri, Sat],
+            Country::BH => &[Fri, Sat],
             Country::DZ => &[Fri, Sat],
             Country::EG => &[Fri, Sat],
-            Country::SY => &[Fri, Sat],
-            Country::YE => &[Fri, Sat],
-            Country::BH => &[Fri, Sat],
             Country::IQ => &[Fri, Sat],
             Country::LY => &[Fri, Sat],
+            Country::SD => &[Fri, Sat],
+            Country::SY => &[Fri, Sat],
             Country::UG => &[Sun],
+            Country::YE => &[Fri, Sat],
 
             _ => &[Sat, Sun],
         }

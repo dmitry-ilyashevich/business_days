@@ -11,16 +11,16 @@ use chrono::NaiveDate;
 use crate::country::Country;
 use crate::holiday::{Holiday, HolidayPerYearMap, Year, from_ymd_res};
 
-{% for country_code, country_code_ident in country_codes %}
-#[cfg(feature = "{{ country_code | lower }}")]
-pub mod {{ country_code_ident | lower }};
+{% for entry in country_codes %}
+#[cfg(feature = "{{ entry.country_code | lower }}")]
+pub mod {{ entry.country_code_ident | lower }};
 {% endfor %}
 
 pub fn build(country: Country, years: Option<&Range<Year>>) -> Result<HolidayPerYearMap> {
     match country {
-{% for country_code, country_code_ident in country_codes %}
-        #[cfg(feature = "{{ country_code | lower }}")]
-        Country::{{ country_code }} => {{ country_code_ident | lower }}::build(years),
+{% for entry in country_codes %}
+        #[cfg(feature = "{{ entry.country_code | lower }}")]
+        Country::{{ entry.country_code }} => {{ entry.country_code_ident | lower }}::build(years),
 {% endfor %}
         #[allow(unreachable_patterns)]
         other => anyhow::bail!(
