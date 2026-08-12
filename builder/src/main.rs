@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -133,6 +134,28 @@ fn main() -> Result<()> {
             country.country_code, fetched, cached
         );
     }
+
+    // Codegen holidays data for library
+    let root_dir = builder_dir
+        .parent()
+        .context("Failed to find root directory")?
+        .to_path_buf();
+    let data_dir = root_dir.join("src/data");
+    fs::create_dir_all(&data_dir).context("Failed to create data directory")?;
+
+    let mut generated = 0u32;
+    for country in &countries {
+        if let Some(selected_countries) = &args.countries {
+            if !selected_countries.contains(&country.country_code) {
+                continue;
+            }
+        }
+
+        if generate_country(&cache, &data_dir, country)? {
+            generated += 1;
+        }
+    }
+    println!("Generated data for {generated} countries");
 
     Ok(())
 }
@@ -287,4 +310,120 @@ fn get_with_retry(url: &str) -> Result<Option<String>> {
     }
 
     Ok(None)
+}
+
+// Generate Rust code for a specific country based on cached holiday data.
+fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Result<bool> {
+    let dir = cache.join(&country.country_code);
+    if !dir.exists() {
+        return Ok(false);
+    }
+
+    let mut holidays_by_year = BTreeMap::new();
+    for year in START_YEAR..=chrono::Utc::now().year() as u32 + FUTURE_YEARS {
+        let path = dir.join(format!("{year}.json"));
+        if !path.exists() {
+            continue;
+        }
+
+        let raw_body = fs::read_to_string(&path).with_context(|| {
+            format!(
+                "Failed to read cache file for {} in {}",
+                country.country_code, year
+            )
+        })?;
+        let holidays: Vec<ApiHoliday> = serde_json::from_str(&raw_body).with_context(|| {
+            format!(
+                "Failed to parse holidays JSON for {} in {}",
+                country.country_code, year
+            )
+        })?;
+        holidays_by_year.insert(year, holidays);
+    }
+
+    if holidays_by_year.is_empty() {
+        return Ok(false);
+    }
+
+    let output_path = data_dir.join(format!("{}.rs", country.country_code.to_lowercase()));
+    let mut output = String::new();
+
+    output.push_str(&format!("//! {}\n", country.name));
+    output.push_str("//\n");
+    output.push_str("// This file is auto-generated. Do not edit manually.\n\n");
+    output.push_str("use super::*;\n\n");
+    output.push_str("pub fn build(years: Option<&Range<Year>>) -> Result<HolidayPerYearMap> {\n");
+    output.push_str("    let mut map = HashMap::new();\n\n");
+
+    for (year, holidays) in &holidays_by_year {
+        output.push_str(&format!("    build_year(\n"));
+        output.push_str(&format!("        years,\n"));
+        output.push_str(&format!("        {year},\n"));
+        output.push_str(&format!("        [\n"));
+
+        for holiday in holidays {
+            let local_name = holiday.local_name.as_deref().unwrap_or(&holiday.name);
+            let (year, month, day) = parse_date(&holiday.date).with_context(|| {
+                format!(
+                    "Failed to parse date {} for {} in {}",
+                    holiday.date, holiday.name, country.country_code
+                )
+            })?;
+
+            output.push_str(&format!(
+                "            (from_ymd_res({}, {}, {})?, \"{}\", \"{}\"),\n",
+                year, month, day, local_name, holiday.name
+            ));
+        }
+        output.push_str(&format!("        ],\n"));
+        output.push_str(&format!("        &mut map,\n"));
+        output.push_str(&format!("        Country::{},\n", country.country_code));
+        output.push_str(&format!("        \"{}\",\n", country.name));
+        output.push_str(&format!("    );\n\n"));
+    }
+
+    output.push_str("    Ok(map)\n");
+    output.push_str("}\n");
+
+    fs::write(&output_path, output).with_context(|| {
+        format!(
+            "Failed to write generated file for {}",
+            country.country_code
+        )
+    })?;
+
+    rustfmt_file(&output_path).with_context(|| {
+        format!(
+            "Failed to format generated file for {}",
+            country.country_code
+        )
+    })?;
+
+    Ok(true)
+}
+
+fn parse_date(date_str: &str) -> Result<(u32, u32, u32)> {
+    let parts: Vec<&str> = date_str.split('-').collect();
+    if parts.len() != 3 {
+        bail!("Invalid date format: {}", date_str);
+    }
+
+    let year = parts[0].parse::<u32>().context("Invalid year")?;
+    let month = parts[1].parse::<u32>().context("Invalid month")?;
+    let day = parts[2].parse::<u32>().context("Invalid day")?;
+
+    Ok((year, month, day))
+}
+
+fn rustfmt_file(path: &Path) -> Result<()> {
+    let status = Command::new("rustfmt")
+        .arg(path)
+        .status()
+        .context("Failed to run rustfmt")?;
+
+    if !status.success() {
+        bail!("rustfmt failed on {}", path.display());
+    }
+
+    Ok(())
 }
