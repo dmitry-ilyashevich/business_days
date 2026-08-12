@@ -85,8 +85,17 @@ fn main() -> Result<()> {
         args.countries.as_ref().map_or(countries.len(), |c| c.len())
     );
 
+    let countries_to_fetch: Vec<&CountryInfo> = if let Some(selected_countries) = &args.countries {
+        countries
+            .iter()
+            .filter(|c| selected_countries.contains(&c.country_code))
+            .collect()
+    } else {
+        countries.iter().collect()
+    };
+
     // Fetch countries info
-    for country in &countries {
+    for country in &countries_to_fetch {
         if let Some(selected_countries) = &args.countries {
             if !selected_countries.contains(&country.country_code) {
                 continue;
@@ -159,7 +168,9 @@ fn main() -> Result<()> {
     }
     println!("Generated data for {generated} countries");
 
-    generate_country_enums(&builder_dir, &src_dir, &countries)
+    println!("{:#?}", week_data);
+
+    generate_country_enums(&builder_dir, &src_dir, &countries_to_fetch, &week_data)
         .context("Failed to generate enums")?;
 
     Ok(())
@@ -183,7 +194,9 @@ fn load_countries(cache: &Path, refresh: bool) -> Result<Vec<CountryInfo>> {
 }
 
 // Weekend days of week per country: country code -> list of weekend days
-// e.g., "US" -> ["Sat", "Sun"]
+// e.g., "US" -> ["Sat", "Sun"]. Key '001' is the default for countries
+// not listed in the CLDR data.
+#[derive(Debug)]
 struct WeekData(BTreeMap<String, Vec<&'static str>>);
 
 impl WeekData {
@@ -436,16 +449,26 @@ fn rustfmt_file(path: &Path) -> Result<()> {
 fn generate_country_enums(
     builder_dir: &Path,
     src_dir: &Path,
-    countries: &[CountryInfo],
+    countries: &Vec<&CountryInfo>,
+    week_data: &WeekData,
 ) -> Result<()> {
     let output_path = src_dir.join("country.rs");
     let template_path = builder_dir.join("templates/country.rs.tera");
     let mut tera = Tera::new();
     tera.add_template_file(&template_path, Some("country.rs.tera"))
         .with_context(|| format!("Failed to load template {}", template_path.display()))?;
+
     let mut context = TeraContext::new();
     context.insert("countries_count", &countries.len());
     context.insert("countries", &countries);
+
+    let country_codes: Vec<&String> = countries.iter().map(|c| &c.country_code).collect();
+    let filtered_week_data: BTreeMap<&String, &Vec<&'static str>> = week_data
+        .0
+        .iter()
+        .filter(|(k, _)| country_codes.contains(k))
+        .collect();
+    context.insert("week_data", &filtered_week_data);
 
     let rendered = tera
         .render("country.rs.tera", &context)
