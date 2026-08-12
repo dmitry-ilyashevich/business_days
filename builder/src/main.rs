@@ -170,8 +170,11 @@ fn main() -> Result<()> {
 
     println!("{:#?}", week_data);
 
-    generate_country_enums(&builder_dir, &src_dir, &countries_to_fetch, &week_data)
+    generate_country_enums(builder_dir, &src_dir, &countries_to_fetch, &week_data)
         .context("Failed to generate enums")?;
+
+    generate_mod_file(builder_dir, &src_dir, &countries_to_fetch)
+        .context("Failed to generate mod.rs")?;
 
     Ok(())
 }
@@ -477,6 +480,34 @@ fn generate_country_enums(
     rustfmt_file(&output_path).with_context(|| {
         format!(
             "Failed to format generated country.rs file at {}",
+            output_path.display()
+        )
+    })?;
+
+    Ok(())
+}
+
+fn generate_mod_file(
+    builder_dir: &Path,
+    src_dir: &Path,
+    countries: &Vec<&CountryInfo>,
+) -> Result<()> {
+    let output_path = src_dir.join("data/mod.rs");
+    let template_path = builder_dir.join("templates/mod.rs.tera");
+    let mut tera = Tera::new();
+    tera.add_template_file(&template_path, Some("mod.rs.tera"))
+        .with_context(|| format!("Failed to load template {}", template_path.display()))?;
+
+    let mut context = TeraContext::new();
+    context.insert("countries", &countries);
+
+    let rendered = tera
+        .render("mod.rs.tera", &context)
+        .context("Failed to render mod.rs template")?;
+    fs::write(&output_path, rendered).context("Failed to write mod.rs file")?;
+    rustfmt_file(&output_path).with_context(|| {
+        format!(
+            "Failed to format generated mod.rs file at {}",
             output_path.display()
         )
     })?;
