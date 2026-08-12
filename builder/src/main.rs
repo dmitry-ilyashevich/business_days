@@ -8,7 +8,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use chrono::Datelike;
 use clap::Parser;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use tera::{Context as TeraContext, Tera};
 
 // V4 have not holidays names in local languages, so we use V3 for fetching
 // holidays and V4 for fetching countries list
@@ -23,7 +24,7 @@ const FUTURE_YEARS: u32 = 5;
 
 const REQUEST_DELAY: Duration = Duration::from_millis(150); // milliseconds
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct CountryInfo {
     country_code: String,
@@ -140,6 +141,7 @@ fn main() -> Result<()> {
         .parent()
         .context("Failed to find root directory")?
         .to_path_buf();
+    let src_dir = root_dir.join("src");
     let data_dir = root_dir.join("src/data");
     fs::create_dir_all(&data_dir).context("Failed to create data directory")?;
 
@@ -156,6 +158,9 @@ fn main() -> Result<()> {
         }
     }
     println!("Generated data for {generated} countries");
+
+    generate_country_enums(&builder_dir, &src_dir, &countries)
+        .context("Failed to generate enums")?;
 
     Ok(())
 }
@@ -424,6 +429,34 @@ fn rustfmt_file(path: &Path) -> Result<()> {
     if !status.success() {
         bail!("rustfmt failed on {}", path.display());
     }
+
+    Ok(())
+}
+
+fn generate_country_enums(
+    builder_dir: &Path,
+    src_dir: &Path,
+    countries: &[CountryInfo],
+) -> Result<()> {
+    let output_path = src_dir.join("country.rs");
+    let template_path = builder_dir.join("templates/country.rs.tera");
+    let mut tera = Tera::new();
+    tera.add_template_file(&template_path, Some("country.rs.tera"))
+        .with_context(|| format!("Failed to load template {}", template_path.display()))?;
+    let mut context = TeraContext::new();
+    context.insert("countries_count", &countries.len());
+    context.insert("countries", &countries);
+
+    let rendered = tera
+        .render("country.rs.tera", &context)
+        .context("Failed to render country.rs template")?;
+    fs::write(&output_path, rendered).context("Failed to write country.rs file")?;
+    rustfmt_file(&output_path).with_context(|| {
+        format!(
+            "Failed to format generated country.rs file at {}",
+            output_path.display()
+        )
+    })?;
 
     Ok(())
 }

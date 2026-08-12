@@ -1,0 +1,60 @@
+// This file is generated automatically. Do not edit manually.
+
+use std::fmt;
+use std::str::FromStr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Country {
+{% for country in countries %}    /// {{ country.name }}
+    {{ country.countryCode }},
+
+{% endfor %}
+}
+
+impl Country {
+    pub const ALL: [Country; {{ countries_count }}] = [
+{% for country in countries %}            Country::{{ country.countryCode }},
+{% endfor %}
+    ];
+
+    pub fn code(&self) -> &'static str {
+        match self {
+{% for country in countries %}            Country::{{ country.countryCode }} => "{{ country.countryCode }}",
+{% endfor %}
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+{% for country in countries %}            Country::{{ country.countryCode }} => "{{ country.name }}",
+{% endfor %}
+        }
+    }
+
+    pub fn weekend(&self) -> &'static [chrono::Weekday] {
+        use chrono::Weekday::*;
+
+        #[allow(clippy::match_single_binding)]
+        match self {
+            _ => &[Sat, Sun],
+        }
+    }
+}
+
+impl fmt::Display for Country {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.code())
+    }
+}
+
+impl FromStr for Country {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+{% for country in countries %}            "{{ country.countryCode }}" => Ok(Country::{{ country.countryCode }}),
+{% endfor %}
+            other => Err(anyhow::anyhow!("Unknown country code: {other}")),
+        }
+    }
+}
