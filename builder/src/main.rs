@@ -167,8 +167,6 @@ fn main() -> Result<()> {
     }
     println!("Generated data for {generated} countries");
 
-    println!("{:#?}", week_data);
-
     generate_country_enums(builder_dir, &src_dir, &countries_to_fetch, &week_data)
         .context("Failed to generate enums")?;
 
@@ -202,12 +200,6 @@ fn load_countries(cache: &Path, refresh: bool) -> Result<Vec<CountryInfo>> {
 // not listed in the CLDR data.
 #[derive(Debug)]
 struct WeekData(BTreeMap<String, Vec<&'static str>>);
-
-impl WeekData {
-    fn get(&self, code: &str) -> &[&'static str] {
-        self.0.get(code).unwrap_or_else(|| &self.0["001"])
-    }
-}
 
 fn load_week_data(cache: &Path, refresh: bool) -> Result<WeekData> {
     let path = cache.join("week_data.json");
@@ -360,7 +352,19 @@ fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Res
                 country.country_code, year
             )
         })?;
-        holidays_by_year.insert(year, holidays);
+        // Filter holidays to include only global public holidays
+        holidays_by_year.insert(
+            year,
+            holidays
+                .into_iter()
+                .filter(|h| {
+                    h.global
+                        && h.types
+                            .as_ref()
+                            .map_or(true, |t| t.contains(&"Public".to_string()))
+                })
+                .collect::<Vec<_>>(),
+        );
     }
 
     if holidays_by_year.is_empty() {
