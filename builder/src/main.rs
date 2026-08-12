@@ -24,6 +24,9 @@ const FUTURE_YEARS: u32 = 5;
 
 const REQUEST_DELAY: Duration = Duration::from_millis(150); // milliseconds
 
+/// Two-letter country codes that collide with Rust keywords need `r#` module names.
+const RUST_KEYWORDS: &[&str] = &["as", "do", "fn", "if", "in"];
+
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct CountryInfo {
@@ -398,7 +401,11 @@ fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Res
 
             output.push_str(&format!(
                 "            (from_ymd_res({}, {}, {})?, \"{}\", \"{}\"),\n",
-                year, month, day, local_name, holiday.name
+                year,
+                month,
+                day,
+                local_name.replace("\"", "\\\""),
+                holiday.name.replace("\"", "\\\"")
             ));
         }
         output.push_str(&format!("        ],\n"));
@@ -504,7 +511,11 @@ fn generate_mod_file(
         .with_context(|| format!("Failed to load template {}", template_path.display()))?;
 
     let mut context = TeraContext::new();
-    context.insert("countries", &countries);
+    let country_codes_ident: BTreeMap<&String, String> = countries
+        .iter()
+        .map(|c| (&c.country_code, mod_ident(&c.country_code)))
+        .collect();
+    context.insert("country_codes", &country_codes_ident);
 
     let rendered = tera
         .render("mod.rs.tera", &context)
@@ -553,4 +564,13 @@ fn update_cargo_toml(root_dir: &Path, countries: &Vec<&CountryInfo>) -> Result<(
 
     fs::write(&cargo_toml_path, cargo_toml_content).context("Failed to write Cargo.toml")?;
     Ok(())
+}
+
+/// Module identifier, raw-prefixed when the code is a Rust keyword (`IN` -> `r#in`).
+fn mod_ident(code: &str) -> String {
+    if RUST_KEYWORDS.contains(&code.to_lowercase().as_str()) {
+        format!("r#{code}")
+    } else {
+        code.to_string()
+    }
 }
