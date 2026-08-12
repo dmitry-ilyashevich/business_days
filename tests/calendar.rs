@@ -1,11 +1,14 @@
+#[allow(unused_imports)]
 use business_days::{Calendar, Country};
 use chrono::NaiveDate;
 
+#[allow(dead_code)]
 fn date(year: i32, month: u32, day: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(year, month, day).unwrap()
 }
 
 #[test]
+#[cfg(feature = "pl")]
 fn pl_business_days() {
     let cal = Calendar::new(Country::PL).unwrap();
 
