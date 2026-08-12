@@ -70,7 +70,6 @@ fn main() -> Result<()> {
 
     let countries = load_countries(&cache, args.force)?;
     let week_data = load_week_data(&cache, args.force)?;
-    println!("Weekend days for Poland: {:?}", week_data.get("PL"));
 
     if let Some(selected_countries) = &args.countries {
         for country_code in selected_countries {
@@ -175,6 +174,8 @@ fn main() -> Result<()> {
 
     generate_mod_file(builder_dir, &src_dir, &countries_to_fetch)
         .context("Failed to generate mod.rs")?;
+
+    update_cargo_toml(&root_dir, &countries_to_fetch).context("Failed to update Cargo.toml")?;
 
     Ok(())
 }
@@ -512,5 +513,40 @@ fn generate_mod_file(
         )
     })?;
 
+    Ok(())
+}
+
+fn update_cargo_toml(root_dir: &Path, countries: &Vec<&CountryInfo>) -> Result<()> {
+    let cargo_toml_path = root_dir.join("Cargo.toml");
+    let mut cargo_toml_content =
+        fs::read_to_string(&cargo_toml_path).context("Failed to read Cargo.toml")?;
+
+    // Remove existing features section
+    if let Some(start) = cargo_toml_content.find("[features]") {
+        let end = cargo_toml_content[start..]
+            .find("\n[")
+            .map(|e| start + e)
+            .unwrap_or(cargo_toml_content.len());
+        cargo_toml_content.replace_range(start..end, "");
+    }
+
+    // Append new features section
+    cargo_toml_content.push_str("[features]\n");
+    cargo_toml_content.push_str("# This section is auto-generated. Do not edit manually.\n");
+    cargo_toml_content.push_str("default = [\"all\"]\n");
+    cargo_toml_content.push_str("all = [");
+    cargo_toml_content.push_str(
+        &countries
+            .iter()
+            .map(|c| format!("\"{}\"", c.country_code.to_lowercase()))
+            .collect::<Vec<String>>()
+            .join(", "),
+    );
+    cargo_toml_content.push_str("]\n");
+    for country in countries {
+        cargo_toml_content.push_str(&format!("{} = []\n", country.country_code.to_lowercase()));
+    }
+
+    fs::write(&cargo_toml_path, cargo_toml_content).context("Failed to write Cargo.toml")?;
     Ok(())
 }
