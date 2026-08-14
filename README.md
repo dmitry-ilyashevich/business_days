@@ -1,5 +1,7 @@
 # business_days
 
+[![CI](https://github.com/dmitry-ilyashevich/business_days/actions/workflows/ci.yml/badge.svg)](https://github.com/dmitry-ilyashevich/business_days/actions/workflows/ci.yml)
+
 Rust library with embedded public-holiday data for >200 countries, generated from the [nagerholidays.com](https://nagerholidays.com/) API, years 2000..=2031 (this range can be changed).
 
 ## Usage
