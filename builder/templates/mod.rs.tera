@@ -38,10 +38,10 @@ pub fn build_year<const N: usize>(
     country: Country,
     country_name: &'static str,
 ) {
-    if let Some(range) = years {
-        if !range.contains(&year) {
-            return;
-        }
+    if let Some(range) = years
+        && !range.contains(&year)
+    {
+        return;
     }
 
     map.insert(

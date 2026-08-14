@@ -98,10 +98,10 @@ fn main() -> Result<()> {
 
     // Fetch countries info
     for country in &countries_to_fetch {
-        if let Some(selected_countries) = &args.countries {
-            if !selected_countries.contains(&country.country_code) {
-                continue;
-            }
+        if let Some(selected_countries) = &args.countries
+            && !selected_countries.contains(&country.country_code)
+        {
+            continue;
         }
 
         let dir = cache.join(&country.country_code);
@@ -158,10 +158,10 @@ fn main() -> Result<()> {
 
     let mut generated = 0u32;
     for country in &countries {
-        if let Some(selected_countries) = &args.countries {
-            if !selected_countries.contains(&country.country_code) {
-                continue;
-            }
+        if let Some(selected_countries) = &args.countries
+            && !selected_countries.contains(&country.country_code)
+        {
+            continue;
         }
 
         if generate_country(&cache, &data_dir, country)? {
@@ -186,9 +186,8 @@ fn load_countries(cache: &Path, refresh: bool) -> Result<Vec<CountryInfo>> {
     let raw_body = if path.exists() && !refresh {
         fs::read_to_string(&path)?
     } else {
-        let body = get_with_retry(&format!("{API_V4_URL}/Countries/Available"))?
-            .context("Failed to fetch countries from API")?;
-        body
+        get_with_retry(&format!("{API_V4_URL}/Countries/Available"))?
+            .context("Failed to fetch countries from API")?
     };
 
     let mut countries: Vec<CountryInfo> =
@@ -364,7 +363,7 @@ fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Res
                     h.global
                         && h.types
                             .as_ref()
-                            .map_or(true, |t| t.contains(&"Public".to_string()))
+                            .is_none_or(|t| t.contains(&"Public".to_string()))
                 })
                 .collect::<Vec<_>>(),
         );
@@ -385,10 +384,10 @@ fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Res
     output.push_str("    let mut map = HashMap::new();\n\n");
 
     for (year, holidays) in &holidays_by_year {
-        output.push_str(&format!("    build_year(\n"));
-        output.push_str(&format!("        years,\n"));
+        output.push_str("    build_year(\n");
+        output.push_str("        years,\n");
         output.push_str(&format!("        {year},\n"));
-        output.push_str(&format!("        [\n"));
+        output.push_str("        [\n");
 
         for holiday in holidays {
             let local_name = holiday.local_name.as_deref().unwrap_or(&holiday.name);
@@ -408,11 +407,11 @@ fn generate_country(cache: &Path, data_dir: &Path, country: &CountryInfo) -> Res
                 holiday.name.replace("\"", "\\\"")
             ));
         }
-        output.push_str(&format!("        ],\n"));
-        output.push_str(&format!("        &mut map,\n"));
+        output.push_str("        ],\n");
+        output.push_str("        &mut map,\n");
         output.push_str(&format!("        Country::{},\n", country.country_code));
         output.push_str(&format!("        \"{}\",\n", country.name));
-        output.push_str(&format!("    );\n\n"));
+        output.push_str("    );\n\n");
     }
 
     output.push_str("    Ok(map)\n");

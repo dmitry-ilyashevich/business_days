@@ -9,7 +9,7 @@ use anyhow::Result;
 use chrono::NaiveDate;
 
 use crate::country::Country;
-use crate::holiday::{from_ymd_res, Holiday, HolidayPerYearMap, Year};
+use crate::holiday::{Holiday, HolidayPerYearMap, Year, from_ymd_res};
 
 #[cfg(feature = "ad")]
 pub mod ad;
@@ -1253,10 +1253,10 @@ pub fn build_year<const N: usize>(
     country: Country,
     country_name: &'static str,
 ) {
-    if let Some(range) = years {
-        if !range.contains(&year) {
-            return;
-        }
+    if let Some(range) = years
+        && !range.contains(&year)
+    {
+        return;
     }
 
     map.insert(

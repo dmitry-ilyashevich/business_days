@@ -189,7 +189,6 @@ fn substract_business_days() {
 
 #[test]
 #[cfg(feature = "us")]
-
 fn roll_forward_to_next_business_day() {
     let cal = Calendar::new(Country::US).unwrap();
 
