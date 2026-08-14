@@ -12,6 +12,9 @@ fn date(year: i32, month: u32, day: u32) -> NaiveDate {
 fn pl_business_days() {
     let cal = Calendar::new(Country::PL).unwrap();
 
+    assert!(Calendar::with_years(Country::PL, 2020..2025).is_ok());
+    assert!(Calendar::with_years(Country::PL, 3000..3100).is_err());
+
     assert!(cal.is_holiday(date(2026, 1, 1))); // New Year's Day
     assert!(cal.is_holiday(date(2026, 5, 1))); // Labor Day
     assert!(cal.is_holiday(date(2026, 12, 25))); // Christmas Day
@@ -29,6 +32,11 @@ fn pl_business_days() {
 #[cfg(feature = "us")]
 fn us_business_days() {
     let cal = Calendar::new(Country::US).unwrap();
+
+    assert_eq!(cal.country(), Country::US);
+
+    assert!(Calendar::with_years(Country::US, 2020..2025).is_ok());
+    assert!(Calendar::with_years(Country::US, 3000..3100).is_err());
 
     assert!(cal.is_holiday(date(2026, 7, 3))); // Independence Day 
     assert!(!cal.is_business_day(date(2026, 7, 3))); // Independence Day
@@ -71,10 +79,10 @@ fn count_defaults_to_today() {
     let cal = Calendar::new(Country::UA).unwrap();
 
     let today = chrono::Local::now().date_naive();
-    let explicit = cal
-        .business_days_between(date(2026, 1, 1), Some(today))
-        .unwrap();
-    let implicit = cal.business_days_between(date(2026, 1, 1), None).unwrap();
+    let year_ago = today - chrono::Duration::days(365);
+
+    let explicit = cal.business_days_between(year_ago, Some(today)).unwrap();
+    let implicit = cal.business_days_between(year_ago, None).unwrap();
 
     assert_eq!(explicit, implicit);
 }
@@ -158,6 +166,8 @@ fn add_business_days() {
         cal.add_business_days(date(2026, 1, 1), 3).unwrap(),
         date(2026, 1, 7)
     );
+
+    assert!(cal.add_business_days(date(1999, 1, 1), 1).is_err());
 }
 
 #[test]
@@ -186,6 +196,8 @@ fn substract_business_days() {
         cal.subtract_business_days(date(2026, 1, 1), 0).unwrap(),
         date(2025, 12, 31)
     );
+
+    assert!(cal.subtract_business_days(date(2090, 1, 1), 0).is_err());
 }
 
 #[test]
