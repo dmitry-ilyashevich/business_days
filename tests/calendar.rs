@@ -66,7 +66,7 @@ fn ua_count_between() {
 }
 
 #[test]
-#[cfg(feature = "us")]
+#[cfg(feature = "ua")]
 fn count_defaults_to_today() {
     let cal = Calendar::new(Country::UA).unwrap();
 
@@ -99,6 +99,7 @@ fn count_errors() {
 }
 
 #[test]
+#[cfg(feature = "ua")]
 fn with_years_restricts_coverage() {
     let cal = Calendar::with_years(Country::UA, 2020..2022).unwrap();
     assert_eq!(cal.covered_years(), 2020..=2021);
