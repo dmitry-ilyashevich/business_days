@@ -8,13 +8,30 @@ Rust library with embedded public-holiday data for >200 countries, generated fro
 use business_days::{Calendar, Country};
 use chrono::NaiveDate;
 
-let cal = Calendar::new(Country::UA)?;
+let cal = Calendar::new(Country::UA).unwrap();
 let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
 
 cal.is_holiday(date);                      // true - New Year's Day
 cal.is_business_day(date);                 // false
 cal.holiday(date);                         // Some(&Holiday { name: "Новий Рік", name_en: "New Year's Day", ... })
 cal.business_days_between(date, None)?;    // business days from `date` through today, inclusive
+```
+
+The `roll_forward` and `roll_backward` methods snap a date to a nearby business day. If provided with a business day, they will return that date. Otherwise, they will advance (forward for roll_forward and backward for roll_backward) until a business day is found.
+
+```rust
+cal.roll_forward(date)                     // 2026-02-02
+cal.roll_backward(date)                    // 2025-12-31
+
+```
+
+The `add_business_days` and `subtract_business_days` are used to perform business day arithmetic on dates. Note: methods calls `roll_forward`/`roll_backward` first.
+
+```rust
+cal.add_business_days(date, 0)             // 2026-01-02: rolls forward to Jan 2 Fri
+cal.add_business_days(date, 1)             // 2026-01-05: rolls to Jan 2 Fri, then add 1 business day
+
+cal.subtract_business_days(date, 0)        // 2025-12-31: rolls backward to Dec 31 Thu
 ```
 
 Weekly rest days come from Unicode CLDR week data and differ per country (Sat/Sun for most, Fri/Sat for Egypt or Algeria, Sun for Uganda, etc.); see `Country::weekend()`. Observed/substitute days ("holiday falls on a weekend -> next workday is off") are already encoded in the upstream data as separate dates, so the calendar does no shifting of its own.

@@ -111,4 +111,75 @@ impl Calendar {
 
         Ok(count)
     }
+
+    /// Roll a date forward to the next business day.
+    ///
+    /// Returns an error if the date is not within [`covered_years()`](Self::covered_years).
+    pub fn roll_forward(&self, mut day: NaiveDate) -> Result<NaiveDate> {
+        while !self.is_business_day(day) {
+            day = day.succ_opt().context("date out of range")?;
+        }
+        Ok(day)
+    }
+
+    /// Roll a date backward to the previous business day.
+    ///
+    /// Returns an error if the date is not within [`covered_years()`](Self::covered_years).
+    pub fn roll_backward(&self, mut day: NaiveDate) -> Result<NaiveDate> {
+        while !self.is_business_day(day) {
+            day = day.pred_opt().context("date out of range")?;
+        }
+        Ok(day)
+    }
+
+    /// Add a number of business days to a given start date.
+    ///
+    /// Returns an error if the start date is not within [`covered_years()`](Self::covered_years).
+    pub fn add_business_days(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
+        let start_business_day = self.roll_forward(start)?;
+
+        if !self.covered_years().contains(&start_business_day.year()) {
+            bail!(
+                "start date {start_business_day} is not within covered years {:?}",
+                self.covered_years()
+            );
+        }
+
+        let mut count = 0;
+        let mut day = start_business_day;
+        while count < days {
+            day = day.succ_opt().context("date out of range")?;
+            if self.is_business_day(day) {
+                count += 1;
+            }
+        }
+
+        Ok(day)
+    }
+
+    /// Subtract a number of business days from a given start date.
+    ///
+    /// Returns an error if the start date is not within [`covered_years()`](Self::covered_years).
+    pub fn subtract_business_days(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
+        let start_business_day = self.roll_backward(start)?;
+
+        if !self.covered_years().contains(&start_business_day.year()) {
+            bail!(
+                "start_business_day date {start_business_day} is not within covered years {:?}",
+                self.covered_years()
+            );
+        }
+
+        let mut count = 0;
+        let mut day = start_business_day;
+        while count < days {
+            day = day.pred_opt().context("date out of range")?;
+
+            if self.is_business_day(day) {
+                count += 1;
+            }
+        }
+
+        Ok(day)
+    }
 }

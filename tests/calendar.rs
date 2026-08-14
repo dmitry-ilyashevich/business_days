@@ -134,3 +134,104 @@ fn gb_substitute_day_is_in_data() {
     assert!(!cal.is_business_day(date(2026, 12, 28)));
     assert!(!cal.is_holiday(date(2026, 12, 26)));
 }
+
+#[test]
+#[cfg(feature = "us")]
+fn add_business_days() {
+    let cal = Calendar::new(Country::US).unwrap();
+
+    // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-6 = work
+    assert_eq!(
+        cal.add_business_days(date(2026, 1, 1), 0).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.add_business_days(date(2026, 1, 1), 1).unwrap(),
+        date(2026, 1, 5)
+    );
+    assert_eq!(
+        cal.add_business_days(date(2026, 1, 1), 2).unwrap(),
+        date(2026, 1, 6)
+    );
+    assert_eq!(
+        cal.add_business_days(date(2026, 1, 1), 3).unwrap(),
+        date(2026, 1, 7)
+    );
+}
+
+#[test]
+#[cfg(feature = "us")]
+fn substract_business_days() {
+    let cal = Calendar::new(Country::US).unwrap();
+
+    // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-7 = work
+    assert_eq!(
+        cal.subtract_business_days(date(2026, 1, 7), 1).unwrap(),
+        date(2026, 1, 6)
+    );
+    assert_eq!(
+        cal.subtract_business_days(date(2026, 1, 7), 2).unwrap(),
+        date(2026, 1, 5)
+    );
+    assert_eq!(
+        cal.subtract_business_days(date(2026, 1, 7), 3).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.subtract_business_days(date(2026, 1, 7), 5).unwrap(),
+        date(2025, 12, 30)
+    );
+    assert_eq!(
+        cal.subtract_business_days(date(2026, 1, 1), 0).unwrap(),
+        date(2025, 12, 31)
+    );
+}
+
+#[test]
+#[cfg(feature = "us")]
+
+fn roll_forward_to_next_business_day() {
+    let cal = Calendar::new(Country::US).unwrap();
+
+    // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-7 = work
+    assert_eq!(
+        cal.roll_forward(date(2026, 1, 1)).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.roll_forward(date(2026, 1, 2)).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.roll_forward(date(2026, 1, 3)).unwrap(),
+        date(2026, 1, 5)
+    );
+    assert_eq!(
+        cal.roll_forward(date(2026, 1, 4)).unwrap(),
+        date(2026, 1, 5)
+    );
+}
+
+#[test]
+#[cfg(feature = "us")]
+fn roll_backward_to_next_business_day() {
+    let cal = Calendar::new(Country::US).unwrap();
+
+    // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-7 = work
+    assert_eq!(
+        cal.roll_backward(date(2026, 1, 1)).unwrap(),
+        date(2025, 12, 31)
+    );
+    assert_eq!(
+        cal.roll_backward(date(2026, 1, 2)).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.roll_backward(date(2026, 1, 3)).unwrap(),
+        date(2026, 1, 2)
+    );
+    assert_eq!(
+        cal.roll_backward(date(2026, 1, 4)).unwrap(),
+        date(2026, 1, 2)
+    );
+}
