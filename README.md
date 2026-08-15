@@ -64,6 +64,7 @@ cargo run -p builder                       # fetch missing years, regenerate eve
 cargo run -p builder -- --refresh          # also re-fetch current & future years
 cargo run -p builder -- --countries UA,PL  # limit to specific countries
 cargo run -p builder -- --end-year 2033    # extend the horizon (default: current year + 5)
+cargo run -p builder -- --start-year 1995  # extend the horizon (default: 2000)
 cargo run -p builder -- --help             # print help with all possible arguments
 ```
 
@@ -73,7 +74,7 @@ Run `--refresh` once a year to pick up the next future year and any upstream cor
 
 The published crate only embeds years 2000 through current year + 5. That range is baked in at build time by `builder`, so a crate consuming `business_days` from crates.io can't extend it just by calling `build()` with a wider range - years outside the embedded window simply return no data.
 
-If you need years the published release doesn't cover (further into the future, or further back before 2000, if upstream has it), regenerate the data yourself and point your app at that local copy instead of the crates.io version:
+If you need years the published release doesn't cover, regenerate the data yourself and point your app at that local copy instead of the crates.io version:
 
 1. Clone this repository:
    ```sh
@@ -81,7 +82,7 @@ If you need years the published release doesn't cover (further into the future, 
    ```
 2. Regenerate the data for the range and/or countries you need:
    ```sh
-   cargo run -p builder -- --end-year 2040
+   cargo run -p builder -- --end-year 2040 --start-year 1995
    ```
 3. In your app's `Cargo.toml`, replace the crates.io dependency with a path (or git) dependency pointing at your clone:
    ```toml

@@ -57,6 +57,10 @@ struct Args {
     #[arg(short, long)]
     end_year: Option<u32>,
 
+    // Override the default start_year (default: START_YEAR).
+    #[arg(short, long)]
+    start_year: Option<u32>,
+
     // Re-fetch all data, ignoring any cached files.
     #[arg(short, long, default_value_t = false)]
     force: bool,
@@ -67,9 +71,6 @@ fn main() -> Result<()> {
 
     let builder_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let cache = builder_dir.join("cache");
-
-    let current_year = chrono::Utc::now().year() as u32;
-    let end_year = args.end_year.unwrap_or(current_year + FUTURE_YEARS);
 
     let countries = load_countries(&cache, args.force)?;
     let week_data = load_week_data(&cache, args.force)?;
@@ -96,6 +97,10 @@ fn main() -> Result<()> {
         countries.iter().collect()
     };
 
+    let current_year = chrono::Utc::now().year() as u32;
+    let end_year = args.end_year.unwrap_or(current_year + FUTURE_YEARS);
+    let start_year = args.start_year.unwrap_or(START_YEAR);
+
     // Fetch countries info
     for country in &countries_to_fetch {
         if let Some(selected_countries) = &args.countries
@@ -107,7 +112,7 @@ fn main() -> Result<()> {
         let dir = cache.join(&country.country_code);
         fs::create_dir_all(&dir).context("Failed to create cache directory")?;
         let (mut fetched, mut cached) = (0u32, 0u32);
-        for year in START_YEAR..=end_year {
+        for year in start_year..=end_year {
             let path = dir.join(format!("{year}.json"));
             if path.exists() && !args.force {
                 cached += 1;
