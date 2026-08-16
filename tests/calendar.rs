@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use business_days::{Calendar, Country};
+use business_chrono::{Calendar, Country};
 use chrono::{NaiveDate, Weekday};
 
 #[allow(dead_code)]
@@ -9,7 +9,7 @@ fn date(year: i32, month: u32, day: u32) -> NaiveDate {
 
 #[test]
 #[cfg(feature = "pl")]
-fn pl_business_days() {
+fn pl_business_chrono() {
     let cal = Calendar::new(Country::PL).unwrap();
 
     assert!(Calendar::with_years(Country::PL, 2020..2025).is_ok());
@@ -30,7 +30,7 @@ fn pl_business_days() {
 
 #[test]
 #[cfg(feature = "us")]
-fn us_business_days() {
+fn us_business_chrono() {
     let cal = Calendar::new(Country::US).unwrap();
 
     assert_eq!(cal.country(), Country::US);
@@ -60,14 +60,14 @@ fn ua_count_between() {
 
     // Jan 1 Thu = holiday, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-7 = work
     assert_eq!(
-        cal.business_days_between(date(2026, 1, 1), Some(date(2026, 1, 7)))
+        cal.business_chrono_between(date(2026, 1, 1), Some(date(2026, 1, 7)))
             .unwrap(),
         4
     );
 
     // single working day, inclusive on both ends
     assert_eq!(
-        cal.business_days_between(date(2026, 1, 2), Some(date(2026, 1, 2)))
+        cal.business_chrono_between(date(2026, 1, 2), Some(date(2026, 1, 2)))
             .unwrap(),
         1
     );
@@ -81,8 +81,8 @@ fn count_defaults_to_today() {
     let today = chrono::Local::now().date_naive();
     let year_ago = today - chrono::Duration::days(365);
 
-    let explicit = cal.business_days_between(year_ago, Some(today)).unwrap();
-    let implicit = cal.business_days_between(year_ago, None).unwrap();
+    let explicit = cal.business_chrono_between(year_ago, Some(today)).unwrap();
+    let implicit = cal.business_chrono_between(year_ago, None).unwrap();
 
     assert_eq!(explicit, implicit);
 }
@@ -93,15 +93,15 @@ fn count_errors() {
     let cal = Calendar::new(Country::US).unwrap();
 
     assert!(
-        cal.business_days_between(date(2026, 1, 7), Some(date(2026, 1, 1)))
+        cal.business_chrono_between(date(2026, 1, 7), Some(date(2026, 1, 1)))
             .is_err()
     );
     assert!(
-        cal.business_days_between(date(1999, 1, 1), Some(date(2026, 1, 1)))
+        cal.business_chrono_between(date(1999, 1, 1), Some(date(2026, 1, 1)))
             .is_err()
     );
     assert!(
-        cal.business_days_between(date(2026, 1, 1), Some(date(2090, 1, 1)))
+        cal.business_chrono_between(date(2026, 1, 1), Some(date(2090, 1, 1)))
             .is_err()
     );
 }
@@ -111,7 +111,7 @@ fn count_errors() {
 fn with_years_restricts_coverage() {
     let cal = Calendar::with_years(Country::UA, 2020..2022).unwrap();
     assert_eq!(cal.covered_years(), 2020..=2021);
-    assert!(cal.business_days_between(date(2022, 1, 1), None).is_err());
+    assert!(cal.business_chrono_between(date(2022, 1, 1), None).is_err());
 }
 
 #[test]
@@ -146,58 +146,58 @@ fn gb_substitute_day_is_in_data() {
 
 #[test]
 #[cfg(feature = "us")]
-fn add_business_days() {
+fn add_business_chrono() {
     let cal = Calendar::new(Country::US).unwrap();
 
     // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-6 = work
     assert_eq!(
-        cal.add_business_days(date(2026, 1, 1), 0).unwrap(),
+        cal.add_business_chrono(date(2026, 1, 1), 0).unwrap(),
         date(2026, 1, 2)
     );
     assert_eq!(
-        cal.add_business_days(date(2026, 1, 1), 1).unwrap(),
+        cal.add_business_chrono(date(2026, 1, 1), 1).unwrap(),
         date(2026, 1, 5)
     );
     assert_eq!(
-        cal.add_business_days(date(2026, 1, 1), 2).unwrap(),
+        cal.add_business_chrono(date(2026, 1, 1), 2).unwrap(),
         date(2026, 1, 6)
     );
     assert_eq!(
-        cal.add_business_days(date(2026, 1, 1), 3).unwrap(),
+        cal.add_business_chrono(date(2026, 1, 1), 3).unwrap(),
         date(2026, 1, 7)
     );
 
-    assert!(cal.add_business_days(date(1999, 1, 1), 1).is_err());
+    assert!(cal.add_business_chrono(date(1999, 1, 1), 1).is_err());
 }
 
 #[test]
 #[cfg(feature = "us")]
-fn substract_business_days() {
+fn substract_business_chrono() {
     let cal = Calendar::new(Country::US).unwrap();
 
     // Jan 1 Thu = New Year, Jan 2 Fri = work, Jan 3/4 = weekend, Jan 5-7 = work
     assert_eq!(
-        cal.subtract_business_days(date(2026, 1, 7), 1).unwrap(),
+        cal.subtract_business_chrono(date(2026, 1, 7), 1).unwrap(),
         date(2026, 1, 6)
     );
     assert_eq!(
-        cal.subtract_business_days(date(2026, 1, 7), 2).unwrap(),
+        cal.subtract_business_chrono(date(2026, 1, 7), 2).unwrap(),
         date(2026, 1, 5)
     );
     assert_eq!(
-        cal.subtract_business_days(date(2026, 1, 7), 3).unwrap(),
+        cal.subtract_business_chrono(date(2026, 1, 7), 3).unwrap(),
         date(2026, 1, 2)
     );
     assert_eq!(
-        cal.subtract_business_days(date(2026, 1, 7), 5).unwrap(),
+        cal.subtract_business_chrono(date(2026, 1, 7), 5).unwrap(),
         date(2025, 12, 30)
     );
     assert_eq!(
-        cal.subtract_business_days(date(2026, 1, 1), 0).unwrap(),
+        cal.subtract_business_chrono(date(2026, 1, 1), 0).unwrap(),
         date(2025, 12, 31)
     );
 
-    assert!(cal.subtract_business_days(date(2090, 1, 1), 0).is_err());
+    assert!(cal.subtract_business_chrono(date(2090, 1, 1), 0).is_err());
 }
 
 #[test]

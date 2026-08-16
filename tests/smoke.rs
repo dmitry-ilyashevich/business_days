@@ -1,4 +1,4 @@
-use business_days::{Country, build};
+use business_chrono::{Country, build};
 use chrono::NaiveDate;
 
 #[test]

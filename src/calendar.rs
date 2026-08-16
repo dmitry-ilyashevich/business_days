@@ -84,7 +84,7 @@ impl Calendar {
     ///
     /// `end` defaults to today if not provided. Returns an error if
     /// `start` is after `end` or the range is not fully within [`covered_years()`](Self::covered_years).
-    pub fn business_days_between(&self, start: NaiveDate, end: Option<NaiveDate>) -> Result<u32> {
+    pub fn business_chrono_between(&self, start: NaiveDate, end: Option<NaiveDate>) -> Result<u32> {
         let end = end.unwrap_or_else(|| chrono::Local::now().naive_local().date());
 
         if start > end {
@@ -135,7 +135,7 @@ impl Calendar {
     /// Add a number of business days to a given start date.
     ///
     /// Returns an error if the start date is not within [`covered_years()`](Self::covered_years).
-    pub fn add_business_days(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
+    pub fn add_business_chrono(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
         let start_business_day = self.roll_forward(start)?;
 
         if !self.covered_years().contains(&start_business_day.year()) {
@@ -160,7 +160,7 @@ impl Calendar {
     /// Subtract a number of business days from a given start date.
     ///
     /// Returns an error if the start date is not within [`covered_years()`](Self::covered_years).
-    pub fn subtract_business_days(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
+    pub fn subtract_business_chrono(&self, start: NaiveDate, days: u32) -> Result<NaiveDate> {
         let start_business_day = self.roll_backward(start)?;
 
         if !self.covered_years().contains(&start_business_day.year()) {

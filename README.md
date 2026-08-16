@@ -1,13 +1,13 @@
-# business_days
+# business_chrono
 
-[![CI](https://github.com/dmitry-ilyashevich/business_days/actions/workflows/ci.yml/badge.svg)](https://github.com/dmitry-ilyashevich/business_days/actions/workflows/ci.yml)
+[![CI](https://github.com/dmitry-ilyashevich/business_chrono/actions/workflows/ci.yml/badge.svg)](https://github.com/dmitry-ilyashevich/business_chrono/actions/workflows/ci.yml)
 
 Rust library with embedded public-holiday data for >200 countries, generated from the [nagerholidays.com](https://nagerholidays.com/) API, years 2000..=2031 (this range can be changed).
 
 ## Usage
 
 ```rust
-use business_days::{Calendar, Country};
+use business_chrono::{Calendar, Country};
 use chrono::NaiveDate;
 
 let cal = Calendar::new(Country::UA).unwrap();
@@ -16,7 +16,7 @@ let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
 cal.is_holiday(date);                      // true - New Year's Day
 cal.is_business_day(date);                 // false
 cal.holiday(date);                         // Some(&Holiday { name: "Новий Рік", name_en: "New Year's Day", ... })
-cal.business_days_between(date, None)?;    // business days from `date` through today, inclusive
+cal.business_chrono_between(date, None)?;    // business days from `date` through today, inclusive
 ```
 
 The `roll_forward` and `roll_backward` methods snap a date to a nearby business day. If provided with a business day, they will return that date. Otherwise, they will advance (forward for roll_forward and backward for roll_backward) until a business day is found.
@@ -27,13 +27,13 @@ cal.roll_backward(date)                    // 2025-12-31
 
 ```
 
-The `add_business_days` and `subtract_business_days` are used to perform business day arithmetic on dates. Note: methods calls `roll_forward`/`roll_backward` first.
+The `add_business_chrono` and `subtract_business_chrono` are used to perform business day arithmetic on dates. Note: methods calls `roll_forward`/`roll_backward` first.
 
 ```rust
-cal.add_business_days(date, 0)             // 2026-01-02: rolls forward to Jan 2 Fri
-cal.add_business_days(date, 1)             // 2026-01-05: rolls to Jan 2 Fri, then add 1 business day
+cal.add_business_chrono(date, 0)             // 2026-01-02: rolls forward to Jan 2 Fri
+cal.add_business_chrono(date, 1)             // 2026-01-05: rolls to Jan 2 Fri, then add 1 business day
 
-cal.subtract_business_days(date, 0)        // 2025-12-31: rolls backward to Dec 31 Thu
+cal.subtract_business_chrono(date, 0)        // 2025-12-31: rolls backward to Dec 31 Thu
 ```
 
 Weekly rest days come from Unicode CLDR week data and differ per country (Sat/Sun for most, Fri/Sat for Egypt or Algeria, Sun for Uganda, etc.); see `Country::weekend()`. Observed/substitute days ("holiday falls on a weekend -> next workday is off") are already encoded in the upstream data as separate dates, so the calendar does no shifting of its own.
@@ -41,7 +41,7 @@ Weekly rest days come from Unicode CLDR week data and differ per country (Sat/Su
 The raw per-year data is also available:
 
 ```rust
-use business_days::{build, Country};
+use business_chrono::{build, Country};
 
 let map = build(Country::UA, Some(&(2020..2031)))?; // HashMap<Year, BTreeMap<NaiveDate, Holiday>>
 let holidays_2026 = &map[&2026];
@@ -52,7 +52,7 @@ Only nationwide public holidays are included (regional and Bank/School/ Observan
 Each country is behind a cargo feature named after its lowercase ISO code (`ua`, `us`, `de`, ...). The default `all` feature enables every country; to compile only what you need:
 
 ```toml
-business_days = { version = "0.1", default-features = false, features = ["ua", "pl"] }
+business_chrono = { version = "0.1", default-features = false, features = ["ua", "pl"] }
 ```
 
 ## Regenerating the data
@@ -72,13 +72,13 @@ Run `--refresh` once a year to pick up the next future year and any upstream cor
 
 ## Need a different year range?
 
-The published crate only embeds years 2000 through current year + 5. That range is baked in at build time by `builder`, so a crate consuming `business_days` from crates.io can't extend it just by calling `build()` with a wider range - years outside the embedded window simply return no data.
+The published crate only embeds years 2000 through current year + 5. That range is baked in at build time by `builder`, so a crate consuming `business_chrono` from crates.io can't extend it just by calling `build()` with a wider range - years outside the embedded window simply return no data.
 
 If you need years the published release doesn't cover, regenerate the data yourself and point your app at that local copy instead of the crates.io version:
 
 1. Clone this repository:
    ```sh
-   git clone https://github.com/dmitry-ilyashevich/business_days
+   git clone https://github.com/dmitry-ilyashevich/business_chrono
    ```
 2. Regenerate the data for the range and/or countries you need:
    ```sh
@@ -86,9 +86,9 @@ If you need years the published release doesn't cover, regenerate the data yours
    ```
 3. In your app's `Cargo.toml`, replace the crates.io dependency with a path (or git) dependency pointing at your clone:
    ```toml
-   business_days = { path = "../business_days" }
+   business_chrono = { path = "../business_chrono" }
    # or, if you pushed the regenerated data to your own fork:
-   business_days = { git = "https://github.com/<you>/business_days", branch = "custom-range" }
+   business_chrono = { git = "https://github.com/<you>/business_chrono", branch = "custom-range" }
    ```
 4. Build your app as usual. `path`/`git` dependencies are compiled from source, so your app picks up the regenerated `src/data/` rather than whatever was last published.
 

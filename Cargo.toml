@@ -1,12 +1,12 @@
 [package]
-name = "business_days"
+name = "business_chrono"
 version = "0.1.0"
 edition = "2024"
 description = "Business-day and holiday calculations for different countries"
 license = "MIT"
 readme = "README.md"
-keywords = ["holidays", "dates", "business_days", "calendar"]
-repository = "https://github.com/dmitry-ilyashevich/business_days"
+keywords = ["holidays", "dates", "business_chrono", "calendar"]
+repository = "https://github.com/dmitry-ilyashevich/business_chrono"
 
 [workspace]
 members = [".", "builder"]
@@ -429,3 +429,4 @@ ye = []
 za = []
 zm = []
 zw = []
+
